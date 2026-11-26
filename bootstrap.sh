@@ -1,32 +1,27 @@
 #!/bin/bash
+set -euo pipefail
+trap 'echo "Failed at line $LINENO" >&2' ERR
 
-echo "Installing packages..."
+URL="https://raw.githubusercontent.com/DevOS-create/PocketTux/main/installer.py"
+DIR="$HOME/PocketTux-setup"
 
-if which apt > /dev/null 2>&1; then
-    sudo apt update
-    sudo apt install -y curl wget git unzip python3 python3-pip python3-requests
-elif which dnf > /dev/null 2>&1; then
-    sudo dnf install -y curl wget git unzip python3 python3-pip python3-requests
-elif which pacman > /dev/null 2>&1; then
-    sudo pacman -S --noconfirm curl wget git unzip python python-pip python-requests
+[ "$(id -u)" -eq 0 ] || command -v sudo >/dev/null || { echo "Need root or sudo" >&2; exit 1; }
+
+if command -v apt >/dev/null; then
+    sudo apt update && sudo apt install -y curl python3 python3-requests
+elif command -v dnf >/dev/null; then
+    sudo dnf install -y curl python3 python3-requests
+elif command -v pacman >/dev/null; then
+    sudo pacman -S --noconfirm curl python python-requests
 else
-    echo "Unsupported system"
+    echo "Unsupported distro" >&2
     exit 1
 fi
 
-python3 -c "import requests"
-if [ $? -ne 0 ]; then
-    echo "requests not found, trying pip"
-    pip3 install requests --break-system-packages
-fi
+mkdir -p "$DIR" && cd "$DIR"
+curl -fsSL -o installer.py "$URL"
+[ -s installer.py ] || { echo "Download failed" >&2; exit 1; }
 
-echo "Downloading installer.py..."
-curl -L -o installer.py https://raw.githubusercontent.com/DevOS-create/PocketTux/main/installer.py
+python3 -c "import requests" || { echo "python requests missing" >&2; exit 1; }
 
-if [ ! -f installer.py ]; then
-    echo "Download failed"
-    exit 1
-fi
-
-echo "Running installer.py..."
 python3 installer.py
